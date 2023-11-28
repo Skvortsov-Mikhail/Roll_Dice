@@ -11,7 +11,9 @@ public class Dice : MonoBehaviour
         public Vector3 rotation;
     }
 
-    public Action<bool> DiceRolling;
+    public Action StartRolling;
+    public Action FinishRolling;
+    public Action ReadyToNextRoll;
 
     [SerializeField] private DiceNumber[] m_numbers;
     [SerializeField] private Transform m_pathPointsContainer;
@@ -21,8 +23,15 @@ public class Dice : MonoBehaviour
 
     private Tween _tween;
     private Sequence _sequence;
+
     private Vector3[] _pathPositions;
     private Vector3 _startPosition;
+
+    private Vector3 _animateRotationVector = new Vector3(10000f, 10000f, 10000f);
+    private Vector3 _shakePositionVector = new Vector3(20f, 20f, 20f);
+
+    private float _pathDuration = 2f;
+    private float _shakeDuration = 1f;
 
     private void Start()
     {
@@ -39,6 +48,7 @@ public class Dice : MonoBehaviour
 
         _sequence = DOTween.Sequence();
     }
+
     private void OnDestroy()
     {
         _sequence.Kill();
@@ -49,6 +59,24 @@ public class Dice : MonoBehaviour
     {
         _targetNumber = UnityEngine.Random.Range(1, 21);
 
+        SetTargetRotation();
+
+        AnimateRolling();
+
+        StartRolling?.Invoke();
+    }
+
+    public void ApplyModificator(int bonusValue)
+    {
+        _targetNumber = Mathf.Clamp(_targetNumber + bonusValue, 1, 20);
+
+        SetTargetRotation();
+
+        AnimateModification();
+    }
+
+    private void SetTargetRotation()
+    {
         foreach (var target in m_numbers)
         {
             if (target.number == _targetNumber)
@@ -56,25 +84,30 @@ public class Dice : MonoBehaviour
                 _targetRotation = target.rotation;
             }
         }
-
-        AnimateRolling(_targetRotation);
-
-        DiceRolling?.Invoke(true);
     }
 
-    private void AnimateRolling(Vector3 target)
+    private void AnimateRolling()
     {
-        print(_targetNumber);
-
         _tween.Kill();
         _sequence.Kill();
         _sequence = DOTween.Sequence();
 
-        transform.DOPath(_pathPositions, 2f);
+        transform.DOPath(_pathPositions, _pathDuration);
 
-        _sequence.Append(transform.DORotate(new Vector3(10000f, 10000f, 10000f), 1f, RotateMode.FastBeyond360))
-            .Append(transform.DORotate(target, 1f, RotateMode.FastBeyond360))
+        _sequence.Append(transform.DORotate(_animateRotationVector, _pathDuration / 2, RotateMode.FastBeyond360))
+            .Append(transform.DORotate(_targetRotation, _pathDuration / 2, RotateMode.FastBeyond360))
             .SetEase(Ease.OutSine)
-            .OnComplete(() => DiceRolling?.Invoke(false));
+            .OnComplete(() => FinishRolling?.Invoke());
+    }
+
+    private void AnimateModification()
+    {
+        _tween.Kill();
+
+        transform.DOShakePosition(_shakeDuration, _shakePositionVector);
+
+        transform.rotation = Quaternion.Euler(_targetRotation);
+
+        ReadyToNextRoll?.Invoke();
     }
 }
