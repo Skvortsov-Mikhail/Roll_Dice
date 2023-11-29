@@ -18,6 +18,8 @@ public class Dice : MonoBehaviour
     [SerializeField] private DiceNumber[] m_numbers;
     [SerializeField] private Transform m_pathPointsContainer;
 
+    private AudioSource _audio;
+
     private int _targetNumber;
     private Vector3 _targetRotation;
 
@@ -35,6 +37,8 @@ public class Dice : MonoBehaviour
 
     private void Start()
     {
+        _audio = GetComponentInChildren<AudioSource>();
+
         _startPosition = transform.position;
 
         _pathPositions = new Vector3[m_pathPointsContainer.childCount + 1];
@@ -62,6 +66,8 @@ public class Dice : MonoBehaviour
         SetTargetRotation();
 
         AnimateRolling();
+
+        _audio.Play();
 
         StartRolling?.Invoke();
     }
@@ -92,7 +98,7 @@ public class Dice : MonoBehaviour
         _sequence.Kill();
         _sequence = DOTween.Sequence();
 
-        transform.DOPath(_pathPositions, _pathDuration);
+        transform.DOPath(_pathPositions, _pathDuration, PathType.CatmullRom);
 
         _sequence.Append(transform.DORotate(_animateRotationVector, _pathDuration / 2, RotateMode.FastBeyond360))
             .Append(transform.DORotate(_targetRotation, _pathDuration / 2, RotateMode.FastBeyond360))
